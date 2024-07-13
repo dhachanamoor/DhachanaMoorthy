@@ -1,0 +1,139 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import App from './App';
+
+test('renders the app and fetches initial users', async () => {
+  render(<App />);
+
+  // Check if the initial users are fetched and displayed
+  const user = await screen.findByText('Leanne Graham');
+  expect(user).toBeInTheDocument();
+});
+
+test('adds a new user', async () => {
+  render(<App />);
+
+  // Fill in the new user form
+  fireEvent.change(screen.getByPlaceholderText('New Name'), { target: { value: 'John Doe' } });
+  fireEvent.change(screen.getByPlaceholderText('New Email'), { target: { value: 'john@example.com' } });
+  fireEvent.change(screen.getByPlaceholderText('New Website'), { target: { value: 'johnswebsite.com' } });
+
+  // Click the add user button
+  fireEvent.click(screen.getByText('Add User'));
+
+  // Check if the new user is added to the list
+  await waitFor(() => {
+    const newUser = screen.queryByText('John Doe');
+    expect(newUser).toBeInTheDocument();
+  });
+});
+
+test('updates a user', async () => {
+  render(<App />);
+
+  // Wait for initial users to load
+  const user = await screen.findByText('Leanne Graham');
+  expect(user).toBeInTheDocument();
+
+  // Click the update button for the first user
+  fireEvent.click(screen.getAllByText('Update')[0]);
+
+  // Check if the user's details are updated
+  await waitFor(() => {
+    const updatedUser = screen.queryByText('Updated Name');
+    expect(updatedUser).toBeInTheDocument();
+  });
+});
+
+test('deletes a user', async () => {
+  render(<App />);
+
+  // Wait for initial users to load
+  const user = await screen.findByText('Leanne Graham');
+  expect(user).toBeInTheDocument();
+
+  // Click the delete button for the first user
+  fireEvent.click(screen.getAllByText('Delete')[0]);
+
+  // Check if the user is removed from the list
+  await waitFor(() => {
+    const deletedUser = screen.queryByText('Leanne Graham');
+    expect(deletedUser).not.toBeInTheDocument();
+  });
+});
+-----------------------------------------------------------------------------------------------
+import React, { useEffect, useState } from 'react';
+import { Button, InputGroup, Toaster } from '@blueprintjs/core';
+
+const AppToaster = Toaster.create({
+  position: 'top'
+});
+
+function App() {
+  const [users, setUsers] = useState([]);
+  const [newUser, setNewUser] = useState({ name: '', email: '', website: '' });
+
+  useEffect(() => {
+    fetch('https://jsonplaceholder.typicode.com/users')
+      .then(response => response.json())
+      .then(data => setUsers(data))
+      .catch(error => console.error('Error fetching data:', error));
+  }, []);
+
+  const addUser = () => {
+    const newUserEntry = {
+      id: users.length + 1,
+      ...newUser
+    };
+    setUsers([...users, newUserEntry]);
+    setNewUser({ name: '', email: '', website: '' });
+    AppToaster.show({ message: 'User added successfully', intent: 'success' });
+  };
+
+  const updateUser = (id, updatedInfo) => {
+    setUsers(users.map(user => user.id === id ? { ...user, ...updatedInfo } : user));
+    AppToaster.show({ message: 'User updated successfully', intent: 'success' });
+  };
+
+  const deleteUser = (id) => {
+    setUsers(users.filter(user => user.id !== id));
+    AppToaster.show({ message: 'User deleted successfully', intent: 'danger' });
+  };
+
+  return (
+    <div className="App">
+      <table className="bp4-html-modifier">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Website</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map(user => (
+            <tr key={user.id}>
+              <td>{user.id}</td>
+              <td>{user.name}</td>
+              <td>{user.email}</td>
+              <td>{user.website}</td>
+              <td>
+                <Button intent="primary" onClick={() => updateUser(user.id, { name: 'Updated Name', email: 'updated@example.com', website: 'updatedwebsite.com' })}>Update</Button>
+                <Button intent="danger" onClick={() => deleteUser(user.id)}>Delete</Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <footer>
+        <InputGroup placeholder="New Name" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} />
+        <InputGroup placeholder="New Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+        <InputGroup placeholder="New Website" value={newUser.website} onChange={(e) => setNewUser({ ...newUser, website: e.target.value })} />
+        <Button intent="success" onClick={addUser}>Add User</Button>
+      </footer>
+    </div>
+  );
+}
+
+export default App;
